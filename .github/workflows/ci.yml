@@ -1,0 +1,53 @@
+name: C++20 CI Build and Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.os }} (${{ matrix.cxx }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            cxx: g++-12
+            cc: gcc-12
+          - os: ubuntu-latest
+            cxx: clang++-16
+            cc: clang-16
+          - os: macos-latest
+            cxx: clang++
+            cc: clang
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Compilers (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++-12 clang-16
+
+      - name: Configure CMake
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTS=ON \
+            -DBUILD_BENCHMARKS=ON
+
+      - name: Build Library, Tests, and Benchmarks
+        run: |
+          cmake --build build --parallel
+
+      - name: Execute Unit Tests
+        run: |
+          ctest --test-dir build --output-on-failure
